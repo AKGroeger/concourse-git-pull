@@ -1,0 +1,46 @@
+resource_types:
+  - name: mongo-resource
+    type: registry-image
+    source:
+      repository: apjansing/mongodb-resource
+resources:
+  - name: common-image
+    type: registry-image
+    source:
+      repository: apjansing/mongodb-resource
+  - name: mongo-database
+    type: mongo-resource
+    check_every: 20s
+    source:
+      url: "mongo"
+      port: "27017"
+      db: "test"
+      collection: "trigger"
+      find: ""
+  - name: this-repo
+    type: git
+    source:
+      uri: https://github.com/apjansing/mongo_resource.git
+jobs:
+  - name: do the thing
+    plan:
+    - in_parallel:
+      - get: common-image
+      - get: this-repo
+      - get: mongo-database
+        trigger: true
+    - task: do the thing
+      image: common-image
+      config:
+        platform: linux
+        inputs:
+          - name: mongo-database
+          - name: this-repo
+        outputs:
+          - name: mongo-database
+        run:
+            path: python
+            args: [this-repo/example/mongo_updater.py, mongo-database]
+    - put: mongo-database
+      params:
+        path: mongo-database
